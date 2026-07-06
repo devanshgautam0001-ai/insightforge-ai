@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "Space Grotesk", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-bg-void: #0A0B0F;
+  --color-bg-surface: #12141B;
+  --color-bg-surface-raised: #1A1D26;
+  --color-border-hairline: #262A35;
+  --color-text-primary: #EDEEF2;
+  --color-text-secondary: #8B92A5;
+  --color-text-muted: #545B6E;
+
+  --color-accent-signal: #F5B942;
+  --color-accent-positive: #2DD9A8;
+  --color-accent-negative: #F4485C;
+  --color-accent-info: #4EA1FF;
+}
+
+:root {
+  --bg-void: #0A0B0F;
+  --bg-surface: #12141B;
+  --bg-surface-raised: #1A1D26;
+  --border-hairline: #262A35;
+  --text-primary: #EDEEF2;
+  --text-secondary: #8B92A5;
+  --text-muted: #545B6E;
+
+  --accent-signal: #F5B942;
+  --accent-positive: #2DD9A8;
+  --accent-negative: #F4485C;
+  --accent-info: #4EA1FF;
+}
+
+/* Base resets to enforce Command Deck Terminal */
+html, body, #root {
+  background-color: var(--bg-void) !important;
+  color: var(--text-primary) !important;
+  font-family: "Inter", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars - Precise Terminal Style */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-void);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-hairline);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-signal);
+}
+
+/* Generic element styling overrides for a unified Command Deck layout */
+.bg-slate-900, .bg-[#09090B], .bg-zinc-950, .bg-[#09090B]/80 {
+  background-color: var(--bg-void) !important;
+}
+
+/* Surface containers styling override */
+.bg-zinc-900, .bg-slate-950/40, .bg-[#161618] {
+  background-color: var(--bg-surface) !important;
+}
+
+.border-slate-800, .border-zinc-800, .border-slate-700, .border-slate-700/60, .border-zinc-800/80 {
+  border-color: var(--border-hairline) !important;
+}
+
+/* Sidebar and active menu item styling */
+aside {
+  background-color: var(--bg-void) !important;
+  border-right: 1px solid var(--border-hairline) !important;
+}
+
+/* Card hover brackets (Camera Viewfinder style) */
+.bracket-card {
+  position: relative;
+  transition: all 150ms ease-in-out;
+}
+.bracket-card::before, .bracket-card::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-color: var(--accent-signal);
+  border-style: solid;
+  opacity: 0;
+  transition: opacity 150ms ease-in-out;
+  pointer-events: none;
+}
+/* Top-left & Bottom-right corner markers */
+.bracket-card::before {
+  top: 6px;
+  left: 6px;
+  border-width: 1px 0 0 1px;
+}
+.bracket-card::after {
+  bottom: 6px;
+  right: 6px;
+  border-width: 0 1px 1px 0;
+}
+.bracket-card:hover::before, .bracket-card:hover::after {
+  opacity: 1;
+}
+
+/* Pulse animation for system status dot */
+@keyframes signal-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.4;
+    box-shadow: 0 0 0 0 rgba(245, 185, 66, 0.4);
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+    box-shadow: 0 0 6px 2px rgba(245, 185, 66, 0.8);
+  }
+}
+.pulse-dot {
+  animation: signal-pulse 2s ease-in-out infinite;
+}
+
+/* Amber flash animation for live sensor alerts */
+@keyframes amber-flash {
+  0% {
+    background-color: rgba(245, 185, 66, 0.3);
+  }
+  100% {
+    background-color: #12141B; /* matches --bg-surface */
+  }
+}
+.animate-amber-flash {
+  animation: amber-flash 1s ease-out forwards;
+}
+
+/* Text readable styling classes */
+.text-slate-400, .text-zinc-400 {
+  color: var(--text-secondary) !important;
+}
+.text-slate-500, .text-zinc-500 {
+  color: var(--text-muted) !important;
+}
+.text-white, .text-slate-100, .text-slate-200 {
+  color: var(--text-primary) !important;
+}
+
+/* Inputs and interactive elements styling overrides */
+select, input, textarea {
+  background-color: var(--bg-void) !important;
+  border: 1px solid var(--border-hairline) !important;
+  color: var(--text-primary) !important;
+  font-family: "JetBrains Mono", monospace !important;
+  border-radius: 4px !important;
+}
+select:focus, input:focus, textarea:focus {
+  outline: none !important;
+  border-color: var(--accent-signal) !important;
+}
+
+/* Tooltip custom overrides */
+.terminal-tooltip {
+  background-color: var(--bg-surface) !important;
+  border-left: 2px solid var(--accent-signal) !important;
+  border-top: 1px solid var(--border-hairline) !important;
+  border-right: 1px solid var(--border-hairline) !important;
+  border-bottom: 1px solid var(--border-hairline) !important;
+  padding: 8px 12px !important;
+  font-family: "JetBrains Mono", monospace !important;
+}
+
+/* Drop shadow overrides */
+.shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl {
+  box-shadow: none !important;
+}

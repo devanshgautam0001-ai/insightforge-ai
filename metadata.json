@@ -1,0 +1,6 @@
+{
+  "name": "InsightForge",
+  "description": "A professional-grade Predictive Analytics Platform featuring AutoML model training, time-series forecasting, interactive BI dashboards, AI-powered business recommendations, and natural language data copilot.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
