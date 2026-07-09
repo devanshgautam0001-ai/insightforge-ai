@@ -25,6 +25,7 @@ import LiveStream from "./components/LiveStream.tsx";
 import CopilotChat from "./components/CopilotChat.tsx";
 import SystemMetricsTab from "./components/SystemMetricsTab.tsx";
 import UserManagement from "./components/UserManagement.tsx";
+import EnterpriseRequests from "./components/EnterpriseRequests.tsx";
 import LandingPage from "./components/LandingPage.tsx";
 import ExecutiveReport from "./components/ExecutiveReport.tsx";
 import NotificationCenter from "./components/NotificationCenter.tsx";
@@ -454,6 +455,9 @@ export default function App() {
               )}
               {currentTab === "users" && (effectiveUser.role === "SUPER_ADMIN" || effectiveUser.role === "ADMIN") && (
                 <UserManagement currentUser={effectiveUser} lang={lang} />
+              )}
+              {currentTab === "enterprise_requests" && (effectiveUser.role === "SUPER_ADMIN" || effectiveUser.role === "ADMIN") && (
+                <EnterpriseRequests currentUser={effectiveUser} lang={lang} />
               )}
             </motion.div>
           </AnimatePresence>

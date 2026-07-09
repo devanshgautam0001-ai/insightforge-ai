@@ -167,3 +167,13 @@ export interface SystemMetrics {
   errorsTotal: number;
   queueLength: number;
 }
+
+export interface DemoRequest {
+  id: string; // Unique Reference ID (e.g. IF-YYYYMMDD-XXXX)
+  name: string;
+  email: string;
+  company: string;
+  message: string;
+  submittedAt: string;
+}
+

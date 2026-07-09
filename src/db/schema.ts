@@ -154,3 +154,14 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
     references: [users.uid],
   }),
 }));
+
+// 8. Demo Requests Table
+export const demoRequests = pgTable("demo_requests", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  company: text("company").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  status: text("status").default("Pending").notNull(),
+});

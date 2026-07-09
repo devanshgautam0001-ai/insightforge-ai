@@ -105,6 +105,14 @@ function toPostgresRow(collectionName: string, data: any, docId: string): any {
     if (data.message !== undefined) row.message = data.message;
     if (data.read !== undefined) row.read = data.read;
     if (data.createdAt !== undefined) row.createdAt = data.createdAt;
+  } else if (collectionName === "demo_requests") {
+    row.id = docId;
+    if (data.name !== undefined) row.name = data.name;
+    if (data.email !== undefined) row.email = data.email;
+    if (data.company !== undefined) row.company = data.company;
+    if (data.message !== undefined) row.message = data.message;
+    if (data.createdAt !== undefined) row.createdAt = data.createdAt;
+    if (data.status !== undefined) row.status = data.status;
   }
   return row;
 }

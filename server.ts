@@ -28,6 +28,7 @@ import {
 } from "./server/db.ts";
 import { cleanDataset, runAutoML, generateTimeForecast, detectAnomalies } from "./server/ml.ts";
 import { askDatasetCopilot } from "./server/copilot.ts";
+import { sendRealEmail } from "./server/email.ts";
 
 const app = express();
 const PORT = 3000;
@@ -311,6 +312,289 @@ app.get("/api/me", requireAuth, async (req: AuthenticatedRequest, res: Response)
   } catch (err: any) {
     console.error("API Me error:", err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Enterprise Contact / Demo Request Rate Limiter (Memory-based)
+const demoRateLimits = new Map<string, { count: number; resetTime: number }>();
+
+function demoRateLimitMiddleware(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown") as string;
+  const now = Date.now();
+  const limitWindow = 15 * 60 * 1000; // 15 minutes
+  const maxRequests = 5; // max 5 requests per 15 minutes per IP
+
+  const record = demoRateLimits.get(ip);
+  if (!record || now > record.resetTime) {
+    demoRateLimits.set(ip, { count: 1, resetTime: now + limitWindow });
+    return next();
+  }
+
+  if (record.count >= maxRequests) {
+    return res.status(429).json({
+      error: "Too many demo requests. Please try again after 15 minutes to prevent spam."
+    });
+  }
+
+  record.count++;
+  next();
+}
+
+function sanitizeInput(val: any): string {
+  if (typeof val !== "string") return "";
+  return val
+    .trim()
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+    .replace(/\//g, "&#x2F;");
+}
+
+// Enterprise Contact / Demo Request Endpoint
+app.post("/api/contact/request-demo", demoRateLimitMiddleware, async (req, res) => {
+  try {
+    const { name, email, company, message } = req.body;
+
+    const sanitizedName = typeof name === "string" ? name.trim() : "";
+    const sanitizedEmail = typeof email === "string" ? email.trim() : "";
+    const sanitizedCompany = typeof company === "string" ? company.trim() : "";
+    const sanitizedMessage = typeof message === "string" ? message.trim() : "";
+
+    if (!sanitizedName) {
+      return res.status(400).json({ error: "Name is required." });
+    }
+    if (!sanitizedEmail) {
+      return res.status(400).json({ error: "Corporate Email is required." });
+    }
+
+    // Email address formatting check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sanitizedEmail)) {
+      return res.status(400).json({ error: "A valid Corporate Email is required." });
+    }
+
+    if (!sanitizedCompany) {
+      return res.status(400).json({ error: "Company is required." });
+    }
+    if (!sanitizedMessage) {
+      return res.status(400).json({ error: "Inquiry details are required." });
+    }
+
+    const emailKey = sanitizedEmail.toLowerCase();
+
+    // Prevent duplicate submissions: check if a submission with the same email exists in the last 5 minutes
+    const existingCheck = await adminDb.collection("demo_requests")
+      .where("email", "==", emailKey)
+      .limit(1)
+      .get();
+
+    if (!existingCheck.empty) {
+      const docData = existingCheck.docs[0].data();
+      const lastCreated = docData.createdAt ? new Date(docData.createdAt) : null;
+      if (lastCreated && Date.now() - lastCreated.getTime() < 5 * 60 * 1000) {
+        return res.status(400).json({
+          error: "A corporate request has already been submitted for this email recently. Please try again in 5 minutes."
+        });
+      }
+    }
+
+    // Generate unique reference ID: IF-YYYYMMDD-XXXXXX
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const dateStr = `${year}${month}${day}`;
+    const randVal = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
+    const referenceId = `IF-${dateStr}-${randVal}`;
+
+    // Format admin notification email content
+    const emailSubject = "🚀 New InsightForge Enterprise Demo Request";
+    const emailBodyText = `------------------------------------------------
+
+NEW ENTERPRISE DEMO REQUEST
+
+Reference ID:
+${referenceId}
+
+Name:
+${sanitizedName}
+
+Corporate Email:
+${sanitizedEmail}
+
+Company:
+${sanitizedCompany}
+
+Inquiry:
+
+${sanitizedMessage}
+
+Submitted:
+
+${now.toISOString()}
+
+------------------------------------------------
+
+Generated automatically by InsightForge AI.`;
+
+    const emailBodyHtml = `<div style="font-family: monospace; white-space: pre-wrap; font-size: 13px; color: #1e293b; background-color: #f8fafc; padding: 20px; border: 1px solid #e2e8f0; border-radius: 4px; line-height: 1.6;">
+------------------------------------------------
+
+NEW ENTERPRISE DEMO REQUEST
+
+Reference ID:
+<strong>${referenceId}</strong>
+
+Name:
+${sanitizedName}
+
+Corporate Email:
+${sanitizedEmail}
+
+Company:
+${sanitizedCompany}
+
+Inquiry:
+
+${sanitizedMessage}
+
+Submitted:
+
+${now.toISOString()}
+
+------------------------------------------------
+
+Generated automatically by InsightForge AI.
+</div>`;
+
+    // 1. Deliver the notification email first. If it fails, return HTTP 500 as per specification.
+    try {
+      await sendRealEmail({
+        to: "devanshgautam0001@gmail.com",
+        subject: emailSubject,
+        text: emailBodyText,
+        html: emailBodyHtml,
+      });
+    } catch (deliveryErr: any) {
+      console.error("Failed to deliver admin notification email:", deliveryErr);
+      return res.status(500).json({
+        success: false,
+        error: "Email delivery failed."
+      });
+    }
+
+    // 2. Deliver automatic auto-reply confirmation to the customer's email
+    try {
+      const replySubject = "We received your InsightForge request";
+      const replyText = `Hello ${sanitizedName},
+
+Thank you for contacting InsightForge.
+
+Your request has been received.
+
+Reference ID:
+
+${referenceId}
+
+We'll contact you shortly.
+
+Regards,
+InsightForge Team`;
+
+      const replyHtml = `<div style="font-family: sans-serif; font-size: 14px; color: #1e293b; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 6px;">
+<p>Hello ${sanitizedName},</p>
+<p>Thank you for contacting InsightForge.</p>
+<p>Your request has been received.</p>
+<p><strong>Reference ID:</strong></p>
+<p style="font-family: monospace; font-size: 16px; background-color: #f1f5f9; padding: 10px 15px; border-radius: 4px; display: inline-block; font-weight: bold; color: #0f172a;">${referenceId}</p>
+<p>We'll contact you shortly.</p>
+<hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+<p style="font-size: 12px; color: #64748b;">Regards,<br><strong>InsightForge Team</strong></p>
+</div>`;
+
+      await sendRealEmail({
+        to: sanitizedEmail,
+        subject: replySubject,
+        text: replyText,
+        html: replyHtml,
+      });
+    } catch (replyErr: any) {
+      // Non-blocking but log it
+      console.warn("Failed to deliver user auto-reply confirmation email (non-blocking):", replyErr);
+    }
+
+    // 3. Persist the request in our Postgres DB via the adminDb emulator
+    await adminDb.collection("demo_requests").doc(referenceId).set({
+      id: referenceId,
+      name: sanitizedName,
+      email: emailKey,
+      company: sanitizedCompany,
+      message: sanitizedMessage,
+      createdAt: now,
+      status: "Pending",
+    });
+
+    return res.status(200).json({
+      success: true,
+      referenceId,
+    });
+  } catch (err: any) {
+    console.error("Fatal exception inside request-demo API:", err);
+    return res.status(500).json({
+      success: false,
+      error: "An internal error occurred while processing your request."
+    });
+  }
+});
+
+// Admin endpoint to view corporate demo requests
+app.get("/api/admin/demo-requests", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const user = req.user!;
+    if (user.role !== "SUPER_ADMIN" && user.role !== "ADMIN") {
+      return res.status(403).json({ error: "Forbidden: You do not have permission to view enterprise requests." });
+    }
+
+    const snapshot = await adminDb.collection("demo_requests")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const requests = snapshot.docs.map((doc: any) => doc.data());
+    return res.json({ requests });
+  } catch (err: any) {
+    console.error("Error fetching demo requests:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin endpoint to update request status
+app.patch("/api/admin/demo-requests/:id", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const user = req.user!;
+    if (user.role !== "SUPER_ADMIN" && user.role !== "ADMIN") {
+      return res.status(403).json({ error: "Forbidden: You do not have permission to update enterprise requests." });
+    }
+
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!["Pending", "In Progress", "Closed"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status. Allowed values: Pending, In Progress, Closed" });
+    }
+
+    const docRef = adminDb.collection("demo_requests").doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Demo request not found." });
+    }
+
+    await docRef.update({ status });
+    return res.json({ success: true, message: `Status updated to ${status}` });
+  } catch (err: any) {
+    console.error("Error updating demo request status:", err);
+    return res.status(500).json({ error: err.message });
   }
 });
 

@@ -20,7 +20,8 @@ import {
   UserCheck,
   FileText,
   Bell,
-  Settings
+  Settings,
+  Mail
 } from "lucide-react";
 import { Project, Dataset, User } from "../types";
 import { Language, translations } from "../lib/translations";
@@ -69,7 +70,10 @@ export default function Sidebar({
     { id: "executive_report", label: t.executiveReport || "Executive Report", icon: FileText },
     { id: "notifications", label: t.notifications || "Notifications", icon: Bell },
     { id: "settings", label: t.settings || "Settings", icon: Settings },
-    ...(user.role === "SUPER_ADMIN" || user.role === "ADMIN" ? [{ id: "users", label: "User Management", icon: UserCheck }] : [])
+    ...(user.role === "SUPER_ADMIN" || user.role === "ADMIN" ? [
+      { id: "users", label: "User Management", icon: UserCheck },
+      { id: "enterprise_requests", label: "Enterprise Requests", icon: Mail }
+    ] : [])
   ];
 
   // RBAC indicator dot colors

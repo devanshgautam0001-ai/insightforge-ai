@@ -51,6 +51,9 @@ export default function LandingPage() {
   const [contactCompany, setContactCompany] = useState("");
   const [contactMessage, setContactMessage] = useState("");
   const [contactSuccess, setContactSuccess] = useState(false);
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactError, setContactError] = useState("");
+  const [contactReferenceId, setContactReferenceId] = useState("");
 
   const handleGoogleSignIn = async () => {
     setErrorMsg("");
@@ -143,14 +146,67 @@ export default function LandingPage() {
 
 
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setContactSuccess(true);
-    setContactName("");
-    setContactEmail("");
-    setContactCompany("");
-    setContactMessage("");
-    setTimeout(() => setContactSuccess(false), 5000);
+    setContactError("");
+    setContactSuccess(false);
+
+    const emailTrimmed = contactEmail.trim();
+    if (!contactName.trim()) {
+      setContactError("Name is required.");
+      return;
+    }
+    if (!emailTrimmed) {
+      setContactError("Corporate Email is required.");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailTrimmed)) {
+      setContactError("Please enter a valid Corporate Email address.");
+      return;
+    }
+    if (!contactCompany.trim()) {
+      setContactError("Company is required.");
+      return;
+    }
+    if (!contactMessage.trim()) {
+      setContactError("Inquiry details are required.");
+      return;
+    }
+
+    setContactSubmitting(true);
+
+    try {
+      const response = await fetch("/api/contact/request-demo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: contactName.trim(),
+          email: emailTrimmed,
+          company: contactCompany.trim(),
+          message: contactMessage.trim(),
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || `Server responded with status ${response.status}`);
+      }
+
+      setContactReferenceId(data.referenceId || "IF-UNKNOWN");
+      setContactSuccess(true);
+      
+      // Clear fields on successful transmission
+      setContactName("");
+      setContactEmail("");
+      setContactCompany("");
+      setContactMessage("");
+    } catch (err: any) {
+      setContactError(err.message || "An unexpected error occurred. Please try again.");
+    } finally {
+      setContactSubmitting(false);
+    }
   };
 
   // Render Authentication Modal Mode
@@ -833,22 +889,62 @@ export default function LandingPage() {
         </div>
 
         {contactSuccess ? (
-          <div className="bg-[#2DD9A8]/10 border border-[#2DD9A8]/20 text-[#2DD9A8] rounded-sm p-6 text-center font-mono text-xs animate-in fade-in duration-150">
-            <CheckCircle className="w-8 h-8 text-[#2DD9A8] mx-auto mb-3" />
-            <h4 className="font-bold uppercase">Request Transmitted Successfully</h4>
-            <p className="text-[#8B92A5] mt-1 text-[11px]">An enterprise system engineer will contact you shortly to schedule your live system tour.</p>
+          <div className="bg-[#12141B] border border-[#2DD9A8]/30 rounded-sm p-8 text-center font-mono text-xs shadow-2xl relative overflow-hidden bracket-card animate-in fade-in zoom-in-95 duration-200">
+            {/* Corner bracket styling */}
+            <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-[#2DD9A8]" />
+            <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-[#2DD9A8]" />
+            <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-[#2DD9A8]" />
+            <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-[#2DD9A8]" />
+
+            <div className="w-12 h-12 bg-[#2DD9A8]/10 text-[#2DD9A8] rounded-full flex items-center justify-center mx-auto mb-4 border border-[#2DD9A8]/20">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+
+            <h3 className="text-[#EDEEF2] font-display font-black text-sm uppercase tracking-tight mb-2">
+              ✔ Request Submitted Successfully
+            </h3>
+
+            <div className="bg-[#0A0B0F] border border-[#262A35] p-3.5 rounded-sm mb-5 text-center">
+              <span className="block text-[#545B6E] text-[9px] uppercase tracking-wider mb-1 font-bold">Reference ID:</span>
+              <span className="font-mono text-xs font-bold text-[#F5B942] tracking-wider selection:bg-[#F5B942]/20">{contactReferenceId}</span>
+            </div>
+
+            <p className="text-[#8B92A5] text-[11px] mb-5 leading-relaxed">
+              Your request has been delivered successfully.
+            </p>
+
+            <p className="text-[#2DD9A8] text-[11px] font-semibold">
+              Our enterprise team will contact you within 24 hours.
+            </p>
+
+            <button
+              onClick={() => {
+                setContactSuccess(false);
+                setContactReferenceId("");
+              }}
+              className="mt-6 text-[10px] text-[#F5B942] uppercase hover:underline font-bold"
+            >
+              [ SUBMIT ANOTHER REQUEST ]
+            </button>
           </div>
         ) : (
           <form onSubmit={handleContactSubmit} className="space-y-4 font-mono text-xs">
+            {contactError && (
+              <div className="bg-[#F4485C]/10 border border-[#F4485C]/20 text-[#F4485C] rounded-sm p-3.5 text-center font-mono text-[11px] leading-relaxed">
+                <span className="font-bold">TRANSMISSION ERROR:</span> {contactError}
+              </div>
+            )}
+
             <div>
               <label className="block text-[#8B92A5] text-[9px] uppercase tracking-wider mb-1.5 font-bold">Your Name</label>
               <input
                 type="text"
                 required
+                disabled={contactSubmitting}
                 value={contactName}
                 onChange={(e) => setContactName(e.target.value)}
                 placeholder="Dr. Evelyn Thorne"
-                className="w-full bg-[#0A0B0F] border border-[#262A35] rounded-sm py-2 px-3 text-xs text-[#EDEEF2] placeholder-[#545B6E] focus:outline-none focus:border-[#F5B942] transition"
+                className="w-full bg-[#0A0B0F] border border-[#262A35] rounded-sm py-2 px-3 text-xs text-[#EDEEF2] placeholder-[#545B6E] focus:outline-none focus:border-[#F5B942] transition disabled:opacity-50"
               />
             </div>
 
@@ -857,10 +953,11 @@ export default function LandingPage() {
               <input
                 type="email"
                 required
+                disabled={contactSubmitting}
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
                 placeholder="e.thorne@nexusai.com"
-                className="w-full bg-[#0A0B0F] border border-[#262A35] rounded-sm py-2 px-3 text-xs text-[#EDEEF2] placeholder-[#545B6E] focus:outline-none focus:border-[#F5B942] transition"
+                className="w-full bg-[#0A0B0F] border border-[#262A35] rounded-sm py-2 px-3 text-xs text-[#EDEEF2] placeholder-[#545B6E] focus:outline-none focus:border-[#F5B942] transition disabled:opacity-50"
               />
             </div>
 
@@ -869,10 +966,11 @@ export default function LandingPage() {
               <input
                 type="text"
                 required
+                disabled={contactSubmitting}
                 value={contactCompany}
                 onChange={(e) => setContactCompany(e.target.value)}
                 placeholder="Nexus Artificial Intelligence"
-                className="w-full bg-[#0A0B0F] border border-[#262A35] rounded-sm py-2 px-3 text-xs text-[#EDEEF2] placeholder-[#545B6E] focus:outline-none focus:border-[#F5B942] transition"
+                className="w-full bg-[#0A0B0F] border border-[#262A35] rounded-sm py-2 px-3 text-xs text-[#EDEEF2] placeholder-[#545B6E] focus:outline-none focus:border-[#F5B942] transition disabled:opacity-50"
               />
             </div>
 
@@ -881,19 +979,33 @@ export default function LandingPage() {
               <textarea
                 required
                 rows={4}
+                disabled={contactSubmitting}
                 value={contactMessage}
                 onChange={(e) => setContactMessage(e.target.value)}
                 placeholder="Describe your forecasting scale or database streaming parameters..."
-                className="w-full bg-[#0A0B0F] border border-[#262A35] rounded-sm py-2 px-3 text-xs text-[#EDEEF2] placeholder-[#545B6E] focus:outline-none focus:border-[#F5B942] transition resize-none"
+                className="w-full bg-[#0A0B0F] border border-[#262A35] rounded-sm py-2 px-3 text-xs text-[#EDEEF2] placeholder-[#545B6E] focus:outline-none focus:border-[#F5B942] transition resize-none disabled:opacity-50"
               />
             </div>
 
             <button
               type="submit"
-              className="w-full bg-[#F5B942] hover:bg-[#F5B942]/90 text-[#0A0B0F] font-bold py-2.5 rounded-sm transition flex items-center justify-center gap-2"
+              disabled={contactSubmitting}
+              className="w-full bg-[#F5B942] hover:bg-[#F5B942]/90 disabled:bg-[#F5B942]/40 disabled:text-[#0A0B0F]/60 text-[#0A0B0F] font-bold py-2.5 rounded-sm transition flex items-center justify-center gap-2"
             >
-              <Send className="w-3.5 h-3.5" />
-              TRANSMIT DEMO REQUEST
+              {contactSubmitting ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 text-[#0A0B0F]" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  TRANSMITTING REQUEST...
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  TRANSMIT DEMO REQUEST
+                </>
+              )}
             </button>
           </form>
         )}
