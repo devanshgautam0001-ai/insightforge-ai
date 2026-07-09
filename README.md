@@ -480,30 +480,40 @@ VITE_FIREBASE_APP_ID=
 
 # 📸 Screenshots
 
+
+<img width="1918" height="963" alt="image" src="https://github.com/user-attachments/assets/d24b3bd8-baad-4518-976a-1e2b16a4a581" />
+
+
+<img width="1405" height="798" alt="image" src="https://github.com/user-attachments/assets/242a1425-7496-488a-a2e7-a1dbf31c9fde" />
+
+
+<img width="1421" height="803" alt="image" src="https://github.com/user-attachments/assets/9094aefb-6ee4-488b-b9c5-43c0a6f15076" />
+
+<img width="1425" height="822" alt="image" src="https://github.com/user-attachments/assets/5103bb58-a8b2-4eeb-816f-e747723eed08" />
+
+
+<img width="1422" height="806" alt="image" src="https://github.com/user-attachments/assets/ce018d34-8400-4a25-bb65-2c9a1b411a9b" />
+
+
+<img width="1433" height="813" alt="image" src="https://github.com/user-attachments/assets/a5afe450-cde2-4e35-91a9-968d2992512f" />
+
+
+<img width="1416" height="807" alt="image" src="https://github.com/user-attachments/assets/91fc2328-ddd9-47ef-ad2d-9ceb967d09cc" />
+
+
+<img width="1428" height="827" alt="image" src="https://github.com/user-attachments/assets/6173e71a-b10b-4ec2-be23-fd455c4edf1c" />
+
+<img width="1416" height="792" alt="image" src="https://github.com/user-attachments/assets/59389e7f-483e-42f0-bd81-a3bf1896708c" />
+
+
+<img width="1422" height="802" alt="image" src="https://github.com/user-attachments/assets/55f2cfeb-b2a4-4f8a-a96b-b6a1746459b4" />
+
+<img width="1427" height="820" alt="image" src="https://github.com/user-attachments/assets/533128e3-8613-49a1-8afd-8dac6472184b" />
+
+
 ```
-Landing Page
 
-Dashboard
 
-Dataset Upload
-
-AutoML
-
-Explainable AI
-
-Forecasting
-
-Live Monitoring
-
-AI Copilot
-
-Executive Report
-
-User Management
-
-```
-
-(Add screenshots here)
 
 ---
 
