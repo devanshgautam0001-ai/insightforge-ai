@@ -96,11 +96,24 @@ export default function ModelExplainer({ latestModel, dataset, projectId, user }
           "Authorization": `Bearer ${token}`
         }
       });
-      const data = await res.json();
       if (res.ok) {
-        setRecommendations(data.markdown);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          setRecommendations(data.markdown);
+        } else {
+          alert("Handshake mismatch: Recommendations engine did not return JSON.");
+        }
       } else {
-        alert(data.error || "Failed to fetch executive recommendations");
+        let errorMsg = "Failed to fetch executive recommendations";
+        try {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const data = await res.json();
+            errorMsg = data.error || errorMsg;
+          }
+        } catch (e) {}
+        alert(errorMsg);
       }
     } catch (err) {
       console.error(err);

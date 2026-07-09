@@ -6,5 +6,6 @@
   "firestoreDatabaseId": "ai-studio-insightforge-bc3774bb-9986-447f-97da-1012406e0807",
   "storageBucket": "insightforge-ai-76caa.firebasestorage.app",
   "messagingSenderId": "143516103155",
-  "measurementId": "G-RZWYSDLRQT"
+  "measurementId": "",
+  "oAuthClientId": "143516103155-38kqpc5spnche6thj62t4irtibi0b5de.apps.googleusercontent.com"
 }

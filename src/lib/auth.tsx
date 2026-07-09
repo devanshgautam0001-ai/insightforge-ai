@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   // Sync user with Firestore backend
-  const syncWithBackend = async (firebaseUserInstance: FirebaseUser, idToken: string) => {
+  const syncWithBackend = async (firebaseUserInstance: FirebaseUser, idToken: string, customName?: string) => {
     try {
       const res = await fetch("/api/auth/sync", {
         method: "POST",
@@ -48,6 +48,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
+        body: JSON.stringify({
+          displayName: customName || firebaseUserInstance.displayName || undefined
+        })
       });
       if (res.ok) {
         const data = await res.json();
@@ -99,15 +102,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await syncWithBackend(user, idToken);
         } catch (err) {
           console.error("Failed to fetch user ID Token:", err);
-          setFirebaseUser(null);
-          setDbUser(null);
           setToken(null);
-          localStorage.removeItem("auth_token");
+          setDbUser(null);
+          setFirebaseUser(null);
         }
       } else {
-        setFirebaseUser(null);
-        setDbUser(null);
         setToken(null);
+        setDbUser(null);
+        setFirebaseUser(null);
         localStorage.removeItem("auth_token");
       }
       setLoading(false);
@@ -147,8 +149,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const credential = await createUserWithEmailAndPassword(auth, email, pass);
       await updateProfile(credential.user, { displayName: name });
-      // Send dynamic email verification
-      await sendEmailVerification(credential.user);
+      await credential.user.reload();
+      const updatedUser = auth.currentUser;
+      if (updatedUser) {
+        const idToken = await updatedUser.getIdToken(true);
+        setToken(idToken);
+        localStorage.setItem("auth_token", idToken);
+        setFirebaseUser(updatedUser);
+        await syncWithBackend(updatedUser, idToken, name);
+      }
     } catch (err) {
       console.warn("Email registration failed:", err);
       setLoading(false);
@@ -182,14 +191,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       await signOut(auth);
-      setFirebaseUser(null);
-      setDbUser(null);
-      setToken(null);
     } catch (err) {
       console.warn("Signout failed:", err);
-    } finally {
-      setLoading(false);
     }
+    setToken(null);
+    localStorage.removeItem("auth_token");
+    setFirebaseUser(null);
+    setDbUser(null);
+    setLoading(false);
   };
 
   return (

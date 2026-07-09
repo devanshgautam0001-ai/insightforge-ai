@@ -71,12 +71,25 @@ export default function DataCleaner({ dataset, projectId, onDatasetCleaned, lang
           userId: user.id
         })
       });
-      const data = await res.json();
       if (res.ok) {
-        onDatasetCleaned(data);
-        setSuccessMsg(t.cleanSuccess);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          onDatasetCleaned(data);
+          setSuccessMsg(t.cleanSuccess);
+        } else {
+          alert("Handshake mismatch: Clean data pipeline did not return JSON.");
+        }
       } else {
-        alert(data.error || "Failed to clean dataset");
+        let errorMsg = "Failed to clean dataset";
+        try {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const data = await res.json();
+            errorMsg = data.error || errorMsg;
+          }
+        } catch (e) {}
+        alert(errorMsg);
       }
     } catch (err) {
       console.error(err);

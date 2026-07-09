@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   FileSpreadsheet,
   Upload,
@@ -25,6 +26,9 @@ import CopilotChat from "./components/CopilotChat.tsx";
 import SystemMetricsTab from "./components/SystemMetricsTab.tsx";
 import UserManagement from "./components/UserManagement.tsx";
 import LandingPage from "./components/LandingPage.tsx";
+import ExecutiveReport from "./components/ExecutiveReport.tsx";
+import NotificationCenter from "./components/NotificationCenter.tsx";
+import SettingsPage from "./components/SettingsPage.tsx";
 import { useAuth } from "./lib/auth.tsx";
 
 export default function App() {
@@ -33,6 +37,9 @@ export default function App() {
   // Global States
   const [lang, setLang] = useState<Language>("en");
   const [currentTab, setCurrentTab] = useState<string>("overview");
+  const [userOverride, setUserOverride] = useState<any>(null);
+
+  const effectiveUser = userOverride || dbUser;
 
   // Project & Dataset Management
   const [projects, setProjects] = useState<Project[]>([]);
@@ -71,25 +78,30 @@ export default function App() {
           Authorization: `Bearer ${activeToken}`
         }
       });
-      const data = await res.json();
       if (res.ok) {
-        setProjects(data);
-        if (data.length > 0) {
-          // Maintain selection if still valid, else default to first project
-          const stillExists = data.find((p: any) => p.id === selectedProject?.id);
-          const activeProj = stillExists || data[0];
-          setSelectedProject(activeProj);
-          
-          if (activeProj.datasets && activeProj.datasets.length > 0) {
-            const dsStillExists = activeProj.datasets.find((d: any) => d.id === selectedDataset?.id);
-            setSelectedDataset(dsStillExists || activeProj.datasets[0]);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          setProjects(data);
+          if (data.length > 0) {
+            // Maintain selection if still valid, else default to first project
+            const stillExists = data.find((p: any) => p.id === selectedProject?.id);
+            const activeProj = stillExists || data[0];
+            setSelectedProject(activeProj);
+            
+            if (activeProj.datasets && activeProj.datasets.length > 0) {
+              const dsStillExists = activeProj.datasets.find((d: any) => d.id === selectedDataset?.id);
+              setSelectedDataset(dsStillExists || activeProj.datasets[0]);
+            } else {
+              setSelectedDataset(null);
+            }
           } else {
+            setSelectedProject(null);
             setSelectedDataset(null);
           }
-        } else {
-          setSelectedProject(null);
-          setSelectedDataset(null);
         }
+      } else {
+        console.error("Failed to load authenticated workspace projects. Status:", res.status);
       }
     } catch (err) {
       console.error("Failed to load authenticated workspace projects:", err);
@@ -207,19 +219,38 @@ export default function App() {
         },
         body: formData
       });
-      const data = await res.json();
       if (res.ok) {
-        // Refresh project list from DB to load newly ingested dataset with columns & metrics
-        await fetchProjects();
-        setUploadSuccess(`"${file.name}" uploaded and profiled successfully!`);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          // Refresh project list from DB to load newly ingested dataset with columns & metrics
+          await fetchProjects();
+          setUploadSuccess(`"${file.name}" uploaded and profiled successfully!`);
 
-        setTimeout(() => {
-          setShowUploadModal(false);
-          setUploadSuccess("");
-          setCurrentTab("overview");
-        }, 1500);
+          setTimeout(() => {
+            setShowUploadModal(false);
+            setUploadSuccess("");
+            setCurrentTab("overview");
+          }, 1500);
+        } else {
+          setUploadSuccess(`"${file.name}" uploaded and profiled successfully!`);
+          await fetchProjects();
+          setTimeout(() => {
+            setShowUploadModal(false);
+            setUploadSuccess("");
+            setCurrentTab("overview");
+          }, 1500);
+        }
       } else {
-        alert(data.error || "Failed to process target CSV structure.");
+        let errorMsg = "Failed to process target CSV structure.";
+        try {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const data = await res.json();
+            errorMsg = data.error || errorMsg;
+          }
+        } catch (e) {}
+        alert(errorMsg);
       }
     } catch (err) {
       console.error(err);
@@ -246,7 +277,7 @@ export default function App() {
     );
   }
 
-  if (!dbUser) {
+  if (!effectiveUser) {
     return <LandingPage />;
   }
 
@@ -258,7 +289,7 @@ export default function App() {
         setCurrentTab={handleSetCurrentTab}
         lang={lang}
         setLang={setLang}
-        user={dbUser}
+        user={effectiveUser}
         projects={projects}
         selectedProject={selectedProject}
         setSelectedProject={(p) => {
@@ -272,7 +303,7 @@ export default function App() {
         selectedDataset={selectedDataset}
         setSelectedDatasetId={handleSelectDatasetId}
         onUploadDatasetClick={() => {
-          if (dbUser.role === "VIEWER") {
+          if (effectiveUser.role === "VIEWER") {
             alert("RBAC Restriction: Viewers are not authorized to upload custom enterprise datasets.");
             return;
           }
@@ -332,61 +363,100 @@ export default function App() {
         </header>
 
         {/* Tab workspace content */}
-        <div className="flex-1 p-8 overflow-hidden">
-          {currentTab === "overview" && (
-            <DashboardOverview dataset={selectedDataset} />
-          )}
-          {currentTab === "cleaner" && (
-            <DataCleaner
-              dataset={selectedDataset}
-              projectId={selectedProject?.id || ""}
-              onDatasetCleaned={handleDatasetCleaned}
-              lang={lang}
-              user={dbUser}
-            />
-          )}
-          {currentTab === "automl" && (
-            <AutoMLLeaderboard
-              dataset={selectedDataset}
-              projectId={selectedProject?.id || ""}
-              onModelTrained={handleModelTrained}
-              latestModel={latestModel}
-              lang={lang}
-              user={dbUser}
-            />
-          )}
-          {currentTab === "explainability" && (
-            <ModelExplainer
-              latestModel={latestModel}
-              dataset={selectedDataset}
-              projectId={selectedProject?.id || ""}
-              user={dbUser}
-            />
-          )}
-          {currentTab === "forecasting" && (
-            <Forecaster
-              dataset={selectedDataset}
-              projectId={selectedProject?.id || ""}
-              lang={lang}
-            />
-          )}
-          {currentTab === "streaming" && (
-            <LiveStream lang={lang} />
-          )}
-          {currentTab === "copilot" && (
-            <CopilotChat
-              dataset={selectedDataset}
-              projectId={selectedProject?.id || ""}
-              lang={lang}
-              user={dbUser}
-            />
-          )}
-          {currentTab === "metrics" && (
-            <SystemMetricsTab projectId={selectedProject?.id || ""} />
-          )}
-          {currentTab === "users" && (dbUser.role === "SUPER_ADMIN" || dbUser.role === "ADMIN") && (
-            <UserManagement currentUser={dbUser} lang={lang} />
-          )}
+        <div className="flex-1 p-8 overflow-hidden relative">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentTab}
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="h-full flex flex-col overflow-y-auto"
+            >
+              {currentTab === "overview" && (
+                <DashboardOverview dataset={selectedDataset} />
+              )}
+              {currentTab === "cleaner" && (
+                <DataCleaner
+                  dataset={selectedDataset}
+                  projectId={selectedProject?.id || ""}
+                  onDatasetCleaned={handleDatasetCleaned}
+                  lang={lang}
+                  user={effectiveUser}
+                />
+              )}
+              {currentTab === "automl" && (
+                <AutoMLLeaderboard
+                  dataset={selectedDataset}
+                  projectId={selectedProject?.id || ""}
+                  onModelTrained={handleModelTrained}
+                  latestModel={latestModel}
+                  lang={lang}
+                  user={effectiveUser}
+                />
+              )}
+              {currentTab === "explainability" && (
+                <ModelExplainer
+                  latestModel={latestModel}
+                  dataset={selectedDataset}
+                  projectId={selectedProject?.id || ""}
+                  user={effectiveUser}
+                />
+              )}
+              {currentTab === "forecasting" && (
+                <Forecaster
+                  dataset={selectedDataset}
+                  projectId={selectedProject?.id || ""}
+                  lang={lang}
+                />
+              )}
+              {currentTab === "streaming" && (
+                <LiveStream lang={lang} />
+              )}
+              {currentTab === "copilot" && (
+                <CopilotChat
+                  dataset={selectedDataset}
+                  projectId={selectedProject?.id || ""}
+                  lang={lang}
+                  user={effectiveUser}
+                />
+              )}
+              {currentTab === "metrics" && (
+                <SystemMetricsTab projectId={selectedProject?.id || ""} />
+              )}
+              {currentTab === "executive_report" && (
+                <ExecutiveReport
+                  dataset={selectedDataset}
+                  projectId={selectedProject?.id || ""}
+                  user={effectiveUser}
+                  latestModel={latestModel}
+                />
+              )}
+              {currentTab === "notifications" && (
+                <NotificationCenter
+                  user={effectiveUser}
+                  lang={lang}
+                />
+              )}
+              {currentTab === "settings" && (
+                <SettingsPage
+                  currentUser={effectiveUser}
+                  lang={lang}
+                  setLang={setLang}
+                  onProfileUpdated={(name, role) => {
+                    setUserOverride({
+                      ...effectiveUser,
+                      name,
+                      role
+                    });
+                  }}
+                />
+              )}
+              {currentTab === "users" && (effectiveUser.role === "SUPER_ADMIN" || effectiveUser.role === "ADMIN") && (
+                <UserManagement currentUser={effectiveUser} lang={lang} />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 

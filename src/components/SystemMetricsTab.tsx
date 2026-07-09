@@ -43,18 +43,21 @@ export default function SystemMetricsTab({ projectId }: SystemMetricsTabProps) {
           "Authorization": `Bearer ${token}`
         }
       });
-      const data = await res.json();
       if (res.ok) {
-        setMetrics(data);
-        // Track rolling latency history for chart
-        setLatencyHistory(prev => {
-          const next = [...prev, {
-            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-            latency: data.averageLatencyMs || 0
-          }];
-          if (next.length > 15) next.shift();
-          return next;
-        });
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          setMetrics(data);
+          // Track rolling latency history for chart
+          setLatencyHistory(prev => {
+            const next = [...prev, {
+              time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+              latency: data.averageLatencyMs || 0
+            }];
+            if (next.length > 15) next.shift();
+            return next;
+          });
+        }
       }
     } catch (err) {
       console.error("Telemetry fetch failed", err);
@@ -69,9 +72,12 @@ export default function SystemMetricsTab({ projectId }: SystemMetricsTabProps) {
           "Authorization": `Bearer ${token}`
         }
       });
-      const data = await res.json();
       if (res.ok) {
-        setAuditLogs(data);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          setAuditLogs(data);
+        }
       }
     } catch (err) {
       console.error("Audit log fetch failed", err);

@@ -36,6 +36,7 @@ interface DBUser {
   designation: string | null;
   country: string | null;
   createdAt: string;
+  active?: boolean;
 }
 
 export default function UserManagement({ currentUser, lang }: UserManagementProps) {
@@ -58,11 +59,22 @@ export default function UserManagement({ currentUser, lang }: UserManagementProp
           Authorization: `Bearer ${token}`
         }
       });
-      const data = await res.json();
       if (res.ok) {
-        setUsersList(data);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          setUsersList(data);
+        }
       } else {
-        setErrorMsg(data.error || "Failed to retrieve user directory.");
+        let errorMsg = "Failed to retrieve user directory.";
+        try {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const data = await res.json();
+            errorMsg = data.error || errorMsg;
+          }
+        } catch (e) {}
+        setErrorMsg(errorMsg);
       }
     } catch (err) {
       console.error(err);
@@ -96,18 +108,94 @@ export default function UserManagement({ currentUser, lang }: UserManagementProp
         },
         body: JSON.stringify({ role: newRole })
       });
-      const data = await res.json();
       if (res.ok) {
-        setSuccessMsg(`User role successfully updated to ${newRole}.`);
-        setUsersList(prev =>
-          prev.map(u => (u.uid === targetUid ? { ...u, role: newRole } : u))
-        );
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          setSuccessMsg(`User role successfully updated to ${newRole}.`);
+          setUsersList(prev =>
+            prev.map(u => (u.uid === targetUid ? { ...u, role: newRole } : u))
+          );
+        } else {
+          setSuccessMsg(`User role successfully updated to ${newRole}.`);
+        }
       } else {
-        setErrorMsg(data.error || "Failed to update user role.");
+        let errorMsg = "Failed to update user role.";
+        try {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const data = await res.json();
+            errorMsg = data.error || errorMsg;
+          }
+        } catch (e) {}
+        setErrorMsg(errorMsg);
       }
     } catch (err) {
       console.error(err);
       setErrorMsg("Network error occurred during role transition.");
+    } finally {
+      setUpdatingUid(null);
+    }
+  };
+
+  const handleDeactivate = async (targetUid: string) => {
+    setUpdatingUid(targetUid);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
+      const token = localStorage.getItem("auth_token") || "";
+      const res = await fetch(`/api/admin/users/${targetUid}/deactivate`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSuccessMsg(`User status updated successfully.`);
+        setUsersList(prev =>
+          prev.map(u => (u.uid === targetUid ? { ...u, active: data.active } : u))
+        );
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setErrorMsg(data.error || "Failed to toggle user status.");
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Network error trying to toggle user status.");
+    } finally {
+      setUpdatingUid(null);
+    }
+  };
+
+  const handleDelete = async (targetUid: string) => {
+    if (!window.confirm("Are you absolutely sure you want to permanently delete this user account from the registry? This action is irreversible.")) {
+      return;
+    }
+
+    setUpdatingUid(targetUid);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
+      const token = localStorage.getItem("auth_token") || "";
+      const res = await fetch(`/api/admin/users/${targetUid}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        setSuccessMsg(`User successfully purged from system registry.`);
+        setUsersList(prev => prev.filter(u => u.uid !== targetUid));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setErrorMsg(data.error || "Failed to delete user.");
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Network error trying to purge user account.");
     } finally {
       setUpdatingUid(null);
     }
@@ -266,6 +354,11 @@ export default function UserManagement({ currentUser, lang }: UserManagementProp
                             YOU
                           </span>
                         )}
+                        {user.active === false && (
+                          <span className="ml-2 text-[8px] bg-red-500/10 border border-red-500/30 text-red-400 px-1.5 py-0.2 rounded font-bold uppercase">
+                            DEACTIVATED
+                          </span>
+                        )}
                       </div>
                       <div className="text-text-secondary text-[11px] mt-0.5">{user.email}</div>
                     </td>
@@ -280,12 +373,11 @@ export default function UserManagement({ currentUser, lang }: UserManagementProp
                           Protected workspace profile
                         </span>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          {/* Super Admin can promote to ADMIN, demote ADMIN to ANALYST, and manage ANALYST/VIEWER */}
-                          {callerRole === "SUPER_ADMIN" && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          {callerRole === "SUPER_ADMIN" ? (
                             <>
                               {targetRole === "SUPER_ADMIN" && (
-                                <span className="text-[10px] text-text-muted font-mono italic">Protected Super Admin</span>
+                                <span className="text-[10px] text-text-muted font-mono italic font-bold">Protected Super Admin</span>
                               )}
 
                               {targetRole === "ADMIN" && (
@@ -326,36 +418,39 @@ export default function UserManagement({ currentUser, lang }: UserManagementProp
                                   Promote to Analyst
                                 </button>
                               )}
-                            </>
-                          )}
 
-                          {/* Admin can only manage ANALYST and VIEWER, cannot promote anyone to Admin */}
-                          {callerRole === "ADMIN" && (
-                            <>
-                              {(targetRole === "SUPER_ADMIN" || targetRole === "ADMIN") && (
-                                <span className="text-[10px] text-text-muted font-mono italic">Protected Admin Tier</span>
-                              )}
-
-                              {targetRole === "ANALYST" && (
+                              {/* Deactivate / Activate Toggle */}
+                              {user.active !== false ? (
                                 <button
-                                  onClick={() => handleRoleChange(user.uid, "VIEWER")}
+                                  onClick={() => handleDeactivate(user.uid)}
                                   disabled={updatingUid !== null}
-                                  className="bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1 text-[9px] font-mono font-bold uppercase tracking-wider rounded transition cursor-pointer"
+                                  className="bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500 text-orange-400 hover:text-white px-2.5 py-1 text-[9px] font-mono font-bold uppercase tracking-wider rounded transition cursor-pointer"
                                 >
-                                  Demote to Viewer
+                                  Deactivate
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleDeactivate(user.uid)}
+                                  disabled={updatingUid !== null}
+                                  className="bg-green-500/10 border border-green-500/20 hover:bg-green-500 text-green-400 hover:text-white px-2.5 py-1 text-[9px] font-mono font-bold uppercase tracking-wider rounded transition cursor-pointer"
+                                >
+                                  Activate
                                 </button>
                               )}
 
-                              {(targetRole === "VIEWER" || !targetRole) && (
-                                <button
-                                  onClick={() => handleRoleChange(user.uid, "ANALYST")}
-                                  disabled={updatingUid !== null}
-                                  className="bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500 text-blue-400 hover:text-white px-2.5 py-1 text-[9px] font-mono font-bold uppercase tracking-wider rounded transition cursor-pointer"
-                                >
-                                  Promote to Analyst
-                                </button>
-                              )}
+                              {/* Delete operator button */}
+                              <button
+                                onClick={() => handleDelete(user.uid)}
+                                disabled={updatingUid !== null}
+                                className="bg-red-600/20 border border-red-600/30 hover:bg-red-600 text-red-500 hover:text-white px-2.5 py-1 text-[9px] font-mono font-bold uppercase tracking-wider rounded transition cursor-pointer"
+                              >
+                                Delete
+                              </button>
                             </>
+                          ) : (
+                            <span className="text-[10px] text-text-muted font-mono italic">
+                              View-only access
+                            </span>
                           )}
 
                           {updatingUid === user.uid && (

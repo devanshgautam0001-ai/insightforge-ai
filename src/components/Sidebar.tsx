@@ -17,7 +17,10 @@ import {
   Plus,
   ChevronDown,
   LogOut,
-  UserCheck
+  UserCheck,
+  FileText,
+  Bell,
+  Settings
 } from "lucide-react";
 import { Project, Dataset, User } from "../types";
 import { Language, translations } from "../lib/translations";
@@ -63,6 +66,9 @@ export default function Sidebar({
     { id: "streaming", label: t.streaming, icon: Activity },
     { id: "copilot", label: t.copilot, icon: MessageSquare },
     { id: "metrics", label: t.metrics, icon: Cpu },
+    { id: "executive_report", label: t.executiveReport || "Executive Report", icon: FileText },
+    { id: "notifications", label: t.notifications || "Notifications", icon: Bell },
+    { id: "settings", label: t.settings || "Settings", icon: Settings },
     ...(user.role === "SUPER_ADMIN" || user.role === "ADMIN" ? [{ id: "users", label: "User Management", icon: UserCheck }] : [])
   ];
 

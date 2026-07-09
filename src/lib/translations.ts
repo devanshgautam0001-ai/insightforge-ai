@@ -46,7 +46,10 @@ export const translations = {
     voiceQuery: "Voice Query",
     listening: "Listening...",
     recommendation: "AI Advice",
-    exportReport: "Export Executive Report"
+    exportReport: "Export Executive Report",
+    executiveReport: "Executive Report",
+    notifications: "Notifications",
+    settings: "Settings Page"
   },
   hi: {
     title: "इनसाइटफोर्ज",
@@ -88,7 +91,10 @@ export const translations = {
     voiceQuery: "आवाज प्रश्न",
     listening: "सुन रहा हूँ...",
     recommendation: "एआई सलाह",
-    exportReport: "कार्यकारी रिपोर्ट निर्यात करें"
+    exportReport: "कार्यकारी रिपोर्ट निर्यात करें",
+    executiveReport: "कार्यकारी रिपोर्ट",
+    notifications: "सूचनाएं",
+    settings: "सेटिंग्स"
   },
   es: {
     title: "InsightForge",
@@ -130,6 +136,9 @@ export const translations = {
     voiceQuery: "Consulta de Voz",
     listening: "Escuchando...",
     recommendation: "Consejo de IA",
-    exportReport: "Exportar Informe Ejecutivo"
+    exportReport: "Exportar Informe Ejecutivo",
+    executiveReport: "Informe Ejecutivo",
+    notifications: "Notificaciones",
+    settings: "Configuración"
   }
 };

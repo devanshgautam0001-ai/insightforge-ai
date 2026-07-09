@@ -79,12 +79,25 @@ export default function Forecaster({ dataset, projectId, lang }: ForecasterProps
         },
         body: JSON.stringify({ dateColumn, targetColumn, horizon })
       });
-      const data = await res.json();
       if (res.ok) {
-        setForecastPoints(data.points);
-        setSeasonality(data.seasonalityDetected);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          setForecastPoints(data.points);
+          setSeasonality(data.seasonalityDetected);
+        } else {
+          alert("Handshake mismatch: Forecasting engine did not return JSON.");
+        }
       } else {
-        alert(data.error || "Failed to calculate forecasting projections.");
+        let errorMsg = "Failed to calculate forecasting projections.";
+        try {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const data = await res.json();
+            errorMsg = data.error || errorMsg;
+          }
+        } catch (e) {}
+        alert(errorMsg);
       }
     } catch (err) {
       console.error(err);

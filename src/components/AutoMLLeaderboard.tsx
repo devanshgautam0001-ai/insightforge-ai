@@ -113,11 +113,24 @@ export default function AutoMLLeaderboard({
           userId: user.id
         })
       });
-      const data = await res.json();
       if (res.ok) {
-        onModelTrained(data);
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
+          onModelTrained(data);
+        } else {
+          alert("Handshake mismatch: AutoML pipeline did not return JSON.");
+        }
       } else {
-        alert(data.error || "Failed to execute training");
+        let errorMsg = "Failed to execute training";
+        try {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const data = await res.json();
+            errorMsg = data.error || errorMsg;
+          }
+        } catch (e) {}
+        alert(errorMsg);
       }
     } catch (err) {
       console.error(err);
@@ -136,15 +149,15 @@ export default function AutoMLLeaderboard({
   };
 
   return (
-    <div className="space-y-6 max-h-[calc(100vh-64px)] overflow-y-auto p-1">
+    <div className="space-y-6 max-h-[calc(100vh-100px)] overflow-y-auto p-1 pr-2">
       {/* Title */}
-      <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-bg-surface rounded border border-border-hairline p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Brain className="w-5 h-5 text-indigo-500" />
+          <h2 className="text-sm font-display font-bold text-text-primary flex items-center gap-2 uppercase tracking-wide">
+            <Brain className="w-5 h-5 text-accent-signal" />
             AutoML Model Registry & Leaderboard
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-text-secondary mt-0.5 font-sans">
             Auto-select hyperparameter parameters, run multi-model bagging, and track metrics.
           </p>
         </div>
@@ -152,23 +165,23 @@ export default function AutoMLLeaderboard({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ML Orchestration Panel */}
-        <div className="lg:col-span-1 bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 space-y-6 flex flex-col">
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-100 pb-3 mb-2">
-            <Cpu className="w-4 h-4 text-indigo-500" />
-            AutoML Training Configuration
+        <div className="lg:col-span-1 bg-bg-surface rounded border border-border-hairline p-5 space-y-6 flex flex-col">
+          <h3 className="text-xs font-mono font-bold text-text-primary flex items-center gap-1.5 border-b border-border-hairline pb-3 mb-2 uppercase tracking-widest">
+            <Cpu className="w-4 h-4 text-accent-signal" />
+            AutoML Orchestrator
           </h3>
 
           <div className="space-y-4 flex-1">
             {/* Target Pick */}
             <div>
-              <label className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">
+              <label className="block text-[9px] text-text-muted font-mono font-bold uppercase tracking-widest mb-1.5">
                 {t.targetColumn}
               </label>
               <select
                 value={targetColumn}
                 onChange={(e) => setTargetColumn(e.target.value)}
                 disabled={isTraining || user.role === "VIEWER"}
-                className="w-full bg-slate-50 border border-slate-200 text-xs rounded-lg py-2 px-3 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full bg-bg-void border border-border-hairline text-xs font-mono rounded py-2 px-3 text-text-secondary focus:outline-none focus:border-accent-signal"
               >
                 {dataset.columns.map(c => (
                   <option key={c.name} value={c.name}>
@@ -180,20 +193,20 @@ export default function AutoMLLeaderboard({
 
             {/* Problem Type Override */}
             <div>
-              <label className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1.5">
+              <label className="block text-[9px] text-text-muted font-mono font-bold uppercase tracking-widest mb-1.5">
                 {t.problemType}
               </label>
-              <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200/50">
+              <div className="flex bg-bg-void p-0.5 rounded border border-border-hairline">
                 {(["regression", "classification"] as ProblemType[]).map(pt => (
                   <button
                     key={pt}
                     type="button"
                     onClick={() => setProblemType(pt)}
                     disabled={isTraining || user.role === "VIEWER"}
-                    className={`flex-1 text-center py-1.5 rounded-md text-xs font-bold capitalize transition ${
+                    className={`flex-1 text-center py-1.5 rounded text-[10px] font-mono font-bold uppercase transition ${
                       problemType === pt
-                        ? "bg-white text-indigo-600 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
+                        ? "bg-accent-signal text-bg-void"
+                        : "text-text-muted hover:text-text-secondary animate-none"
                     }`}
                   >
                     {pt}
@@ -203,12 +216,12 @@ export default function AutoMLLeaderboard({
             </div>
 
             {/* Training Stats summary preview */}
-            <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 space-y-2 text-xs">
-              <span className="text-[10px] text-slate-400 font-bold uppercase block tracking-wider">Features Included</span>
-              <p className="text-slate-600 font-medium">
+            <div className="bg-bg-void border border-border-hairline rounded p-4 space-y-2 text-xs font-mono">
+              <span className="text-[9px] text-text-muted font-bold uppercase block tracking-wider">Features Included</span>
+              <p className="text-text-secondary">
                 {dataset.columns.length - 1} continuous and categorical dimensions
               </p>
-              <p className="text-[10px] text-slate-400 leading-normal">
+              <p className="text-[9px] text-text-muted leading-normal">
                 Features will automatically handle continuous OLS standardize and categorical hash-encoding split boundaries.
               </p>
             </div>
@@ -216,13 +229,13 @@ export default function AutoMLLeaderboard({
 
           {/* Training Button */}
           {isTraining ? (
-            <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 text-center space-y-3.5">
+            <div className="bg-bg-void border border-border-hairline rounded p-4 text-center space-y-3.5">
               <div className="flex justify-center">
-                <Cpu className="w-8 h-8 text-indigo-500 animate-spin" />
+                <Cpu className="w-8 h-8 text-accent-signal animate-spin" />
               </div>
               <div>
-                <p className="text-xs font-bold text-indigo-600">Executing AutoML Core...</p>
-                <p className="text-[10px] text-slate-400 mt-1">
+                <p className="text-xs font-mono font-bold text-accent-signal uppercase tracking-wider">Executing AutoML Core...</p>
+                <p className="text-[10px] text-text-muted mt-1 font-mono uppercase">
                   {[
                     "Starting execution pipeline...",
                     "Splitting dataset into 80/20 train-test folds...",
@@ -234,9 +247,9 @@ export default function AutoMLLeaderboard({
                   ][trainingStep - 1] || "Computing parameters..."}
                 </p>
               </div>
-              <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+              <div className="w-full bg-bg-surface h-1 rounded-full overflow-hidden">
                 <div
-                  className="bg-indigo-600 h-1.5 rounded-full transition-all duration-300"
+                  className="bg-accent-signal h-1 rounded-full transition-all duration-300"
                   style={{ width: `${(trainingStep / 7) * 100}%` }}
                 />
               </div>
@@ -245,40 +258,42 @@ export default function AutoMLLeaderboard({
             <button
               onClick={handleTrain}
               disabled={user.role === "VIEWER"}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs py-2.5 px-4 rounded-lg shadow-md shadow-indigo-600/10 flex items-center justify-center gap-1.5 mt-4 transition"
+              className="w-full bg-accent-signal hover:bg-accent-signal/90 disabled:bg-bg-void disabled:text-text-muted text-bg-void font-mono font-bold text-[10px] uppercase tracking-wider py-2.5 px-4 rounded transition cursor-pointer"
             >
               <Play className="w-4 h-4" />
-              {t.trainModel}
+              {t.trainModel.toUpperCase()}
             </button>
           )}
         </div>
 
         {/* Leaderboard Results Section */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 flex flex-col h-[520px]">
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 border-b border-slate-100 pb-3 mb-4">
-            <Trophy className="w-4 h-4 text-indigo-500" />
+        <div className="lg:col-span-2 bg-bg-surface rounded border border-border-hairline p-5 flex flex-col h-[520px]">
+          <h3 className="text-xs font-mono font-bold text-text-primary flex items-center gap-1.5 border-b border-border-hairline pb-3 mb-4 uppercase tracking-widest">
+            <Trophy className="w-4 h-4 text-accent-signal" />
             Model Performance Leaderboard
           </h3>
 
-          <div className="flex-1 overflow-y-auto space-y-4">
+          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
             {latestModel ? (
               <>
                 {/* Active Model Summary Card */}
-                <div className="bg-slate-50 border border-slate-100 p-5 rounded-xl flex flex-col md:flex-row justify-between gap-4">
+                <div className="bg-bg-void border border-border-hairline p-4 rounded flex flex-col md:flex-row justify-between gap-4">
                   <div className="space-y-1.5">
-                    <span className="text-[10px] bg-emerald-50 border border-emerald-200 text-emerald-600 px-2 py-0.5 rounded font-bold uppercase">
+                    <span className="text-[8px] bg-accent-positive/10 border border-accent-positive/20 text-accent-positive px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider">
                       Active Production
                     </span>
-                    <h4 className="text-base font-extrabold text-slate-800">{latestModel.algorithm}</h4>
-                    <p className="text-xs text-slate-400">
-                      Optimized target: <strong className="text-slate-600">"{latestModel.targetColumn}"</strong>
+                    <h4 className="text-sm font-mono font-bold text-text-primary">{latestModel.algorithm}</h4>
+                    <p className="text-xs text-text-secondary font-mono">
+                      Optimized target: <strong className="text-accent-signal">"{latestModel.targetColumn}"</strong>
                     </p>
                   </div>
                   <div className="flex gap-2">
                     {Object.entries(latestModel.metrics).map(([key, val]) => (
-                      <div key={key} className="bg-white border border-slate-200/60 rounded-lg p-2.5 text-center min-w-[70px]">
-                        <span className="text-[9px] uppercase font-mono font-bold tracking-wider text-slate-400">{key}</span>
-                        <p className="text-sm font-bold text-slate-800 mt-0.5">{val}</p>
+                      <div key={key} className="bg-bg-surface border border-border-hairline rounded p-2 text-center min-w-[70px]">
+                        <span className="text-[8px] uppercase font-mono font-bold tracking-wider text-text-muted">{key}</span>
+                        <p className="text-xs font-mono font-bold text-text-primary mt-0.5">
+                          {typeof val === "number" ? val.toFixed(4) : val}
+                        </p>
                       </div>
                     ))}
                   </div>
@@ -286,42 +301,42 @@ export default function AutoMLLeaderboard({
 
                 {/* Leaderboard List */}
                 <div className="space-y-2">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-2">Cross-Validation Standings</span>
+                  <span className="text-[9px] text-text-muted font-mono font-bold uppercase tracking-wider block mb-2">Cross-Validation Standings</span>
                   {latestModel.leaderboard.map((model, idx) => (
                     <div
                       key={idx}
-                      className="border border-slate-100 p-3.5 rounded-lg flex items-center justify-between hover:bg-slate-50 transition"
+                      className="border border-border-hairline p-3.5 rounded bg-bg-void flex items-center justify-between hover:bg-bg-void/70 transition"
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center font-mono font-bold text-xs ${
                           idx === 0
-                            ? "bg-amber-50 border border-amber-200 text-amber-600"
+                            ? "bg-accent-signal/20 border border-accent-signal/35 text-accent-signal"
                             : idx === 1
-                            ? "bg-slate-100 border border-slate-200 text-slate-500"
-                            : "bg-slate-50 border border-slate-100 text-slate-400"
+                            ? "bg-bg-surface border border-border-hairline text-text-secondary"
+                            : "bg-bg-surface/50 border border-border-hairline/50 text-text-muted"
                         }`}>
                           {idx + 1}
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-700">{model.algorithm}</p>
-                          <span className="text-[10px] text-slate-400 capitalize">{model.problemType} model</span>
+                          <p className="text-xs font-mono font-bold text-text-primary">{model.algorithm}</p>
+                          <span className="text-[9px] text-text-muted font-mono uppercase tracking-wider">{model.problemType} model</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold font-mono text-slate-800">
+                        <span className="text-xs font-bold font-mono text-text-primary">
                           {getLeaderboardMetric(model.metrics)}
                         </span>
-                        <ChevronRight className="w-4 h-4 text-slate-300" />
+                        <ChevronRight className="w-4 h-4 text-text-muted" />
                       </div>
                     </div>
                   ))}
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                <Brain className="w-10 h-10 text-slate-300 mb-2 stroke-[1.2]" />
-                <p className="text-xs">No models trained yet for this project.</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Choose target and click 'Train Model' to initiate AutoML.</p>
+              <div className="flex flex-col items-center justify-center h-full text-text-secondary font-mono">
+                <Brain className="w-10 h-10 text-text-muted mb-2 stroke-[1.2]" />
+                <p className="text-[10px] uppercase tracking-widest text-text-primary">No Trained Models</p>
+                <p className="text-[9px] text-text-muted mt-0.5 uppercase">Choose target and click 'Train Model' to initiate AutoML.</p>
               </div>
             )}
           </div>

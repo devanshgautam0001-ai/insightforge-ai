@@ -154,6 +154,7 @@ export interface AuditLogEntry {
   userName: string;
   userRole: UserRole;
   action: string;
+  component?: string;
   details: string;
 }
 
