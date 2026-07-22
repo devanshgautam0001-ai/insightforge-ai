@@ -15,7 +15,7 @@
 </div>
 
 ---
-LIVE DEMO: https://lnkd.in/gnYd7dRt
+LIVE DEMO: https://insightforge-167784001474.asia-southeast1.run.app
 # 📌 Overview
 
 InsightForge AI is an enterprise-grade predictive analytics platform built for organizations that need an intelligent decision-support system capable of transforming raw datasets into actionable business intelligence.
